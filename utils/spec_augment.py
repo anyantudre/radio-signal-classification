@@ -2,7 +2,7 @@ import torch
 import numpy as np 
 import random 
 
-from sparse_image_warp import sparse_image_warp 
+from .sparse_image_warp import sparse_image_warp 
 
 class TimeMask(object):
     

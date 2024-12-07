@@ -1,5 +1,6 @@
 # additional
 *.csv
+*.pt
 
 
 # Byte-compiled / optimized / DLL files

@@ -1,8 +1,9 @@
 import config
-from utils import multiclass_accuracy
+from utils.utils import multiclass_accuracy
 
+import numpy as np
 import torch
-from tqdm.notebook import tqdm 
+from tqdm import tqdm 
 
 
 def train_fn(model, dataloader, optimizer, current_epoch):
@@ -10,14 +11,11 @@ def train_fn(model, dataloader, optimizer, current_epoch):
     model.train()
     total_loss = 0.0
     total_acc = 0.0
-    progress_bar = tqdm(dataloader, desc="EPOCH" + "[TRAIN]" + str(current_epoch+1) + '/' + str(config['EPOCHS']))
+    progress_bar = tqdm(dataloader, desc="EPOCH" + "[TRAIN]" + str(current_epoch+1) + '/' + str(config.EPOCHS))
     
     for t, data in enumerate(progress_bar):
         images, labels = data
-        images, labels = images.to(config['DEVICE']), labels.to(config['DEVICE'])
-        
-        #print("Labels:", labels)
-        #print("Labels shape:", labels.shape)
+        images, labels = images.to(config.DEVICE), labels.to(config.DEVICE)
         
         optimizer.zero_grad()
         logits, loss = model(images, labels)
@@ -30,20 +28,20 @@ def train_fn(model, dataloader, optimizer, current_epoch):
         temp = {'loss': '%6f' %float(total_loss/ (t+1)), 'acc': '%6f' %float(total_acc/ (t+1))}
         progress_bar.set_postfix(temp)
         
-    return total_loss/len(dataloader), total_acc/len(dataloader)
+    return total_loss/len(dataloader), float(total_acc/len(dataloader))
 
 
 def eval_fn(model, dataloader, current_epoch):
     
-    model.train()
+    model.eval()
     total_loss = 0.0
     total_acc = 0.0
-    progress_bar = tqdm(dataloader, desc="EPOCH" + "[VALID]" + str(current_epoch+1) + '/' + str(config['EPOCHS']))
+    progress_bar = tqdm(dataloader, desc="EPOCH" + "[VALID]" + str(current_epoch+1) + '/' + str(config.EPOCHS))
     
     with torch.no_grad():
         for t, data in enumerate(progress_bar):
             images, labels = data
-            images, labels = images.to(config['DEVICE']), labels.to(config['DEVICE'])
+            images, labels = images.to(config.DEVICE), labels.to(config.DEVICE)
 
             logits, loss = model(images, labels)
 
@@ -53,18 +51,24 @@ def eval_fn(model, dataloader, current_epoch):
             temp = {'loss': '%6f' %float(total_loss/ (t+1)), 'acc': '%6f' %float(total_acc/ (t+1))}
             progress_bar.set_postfix(temp)
         
-    return total_loss/len(dataloader), total_acc/len(dataloader)
+    return total_loss/len(dataloader), float(total_acc/len(dataloader))
 
 
 def fit(model, trainloader, validloader, optimizer):
     
-    best_valid_loss = np.Inf
+    best_valid_loss = np.inf
+    history = []
     
-    for i in range(config['EPOCHS']+1):
+    for i in range(config.EPOCHS):
         train_loss, train_acc = train_fn(model, trainloader, optimizer, i)
-        valid_loss, valid_acc = train_fn(model, trainloader, i)
+        valid_loss, valid_acc = eval_fn(model, validloader, i)
+        history.append({'epoch': i + 1, 'train_loss': train_loss, 'train_acc': train_acc,
+                        'valid_loss': valid_loss, 'valid_acc': valid_acc})
+        print(f"epoch {i+1}: train loss {train_loss:.4f} acc {train_acc:.4f} | valid loss {valid_loss:.4f} acc {valid_acc:.4f}")
         
         if valid_loss < best_valid_loss:
-            torch.save(model.state_dict(), config['MODEL_NAME'] + "-best-weights.pt")
+            torch.save(model.state_dict(), config.WEIGHTS_PATH)
             print("SAVED BEST WEIGHTS")
-            best_valid_loss = valid_loss        
+            best_valid_loss = valid_loss
+            
+    return history
